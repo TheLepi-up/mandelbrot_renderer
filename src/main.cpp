@@ -2,16 +2,106 @@
 #include "mandelbrotRenderer.h"
 #include <SFML/System.hpp>
 #include <boost/thread/thread.hpp>
+#include <fixed_t_calc.h>
+#include <list>
+#include <sstream>
+#include <fstream>
+#include <cstdio>
 
 using namespace std;
 
-int main(int, char **)
-{
+MandelbrotRenderer* renderer;
+SetCalc_Impl calc;
+
+void saveState(){
+    ostringstream altname;
+    altname << "state" << time(0) << ".tsv";
+    rename("state.tsv", altname.str().c_str());
+    ofstream outfile("state.tsv");
+    ostream *metadatafile = &outfile;
+    
+    if(!outfile.is_open()){
+        std::cout << "Failed to write metadata to state.csv! Writing to stdout instead." << endl;
+        metadatafile = &cout;
+    }
+    *metadatafile << 
+        renderer->calc->toString() << 
+        "\t" << 
+        renderer->windowDepth << 
+        "\t\t\n";
+    
+    for(list<RenderState>::iterator it = renderer->workItems.begin(); it != renderer->workItems.end(); it++){
+        std::stringstream name;
+        short x = it->x;
+        short y = it->y;
+        name << "img " << it->calc->toString() << ".png";
+        if(!it->img->saveToFile(name.str())){
+            std::cout << "Error saving to file" << std::endl;
+        }else{
+            std::cout << "Saved " << name.str() << std::endl;
+        }
+        *metadatafile << it->calc->toString() << "\t" << it->depth << "\t" << x << "\t" << y << "\n";
+    }
+    outfile.close();
+    cout << "state saved" << endl;
+}
+
+inline void resumeState(){
+    ifstream state("state.tsv");
+    if(state.is_open()){
+        cout << "resuming from state.tsv" << endl;
+        string line;
+        while(!getline(state, line).eof()){
+            size_t dIdx = line.find('\t') + 1;
+            size_t xIdx = line.find('\t', dIdx) + 1;
+            size_t yIdx = line.find('\t', xIdx) + 1;
+            if(dIdx == 0 || xIdx == 0 || yIdx == 0){
+                if(line.size() != 0)
+                    cout << "Ignoring line: " << line;
+                continue;
+            }
+            string pos = line.substr(0, xIdx - 1);
+            try{
+                if(xIdx + 1 == yIdx){
+                    //GUI state
+                    renderer->calc->fromStr(pos);
+                    continue;
+                }
+                uint64_t depth = std::stoull(line.substr(dIdx, xIdx - dIdx));
+                short x = std::stoi(line.substr(xIdx, yIdx - xIdx));
+                short y = std::stoi(line.substr(yIdx));
+                boost::thread(&MandelbrotRenderer::renderImage, renderer, new SetCalc_Impl(pos), depth, x, y);
+            }
+            catch(invalid_argument &e)
+            {
+                cout << "error parsing saved state:" << 
+                    " x: '" << line.substr(xIdx, yIdx - xIdx) << 
+                    "' y:'" << line.substr(yIdx) << 
+                    "' depth: '" << line.substr(xIdx, yIdx - xIdx) << 
+                    "' pos: '" << pos << endl;
+            }
+        }
+
+    }
+}
+
+
+int main(int argc, char **argv){
     sf::RenderWindow window(sf::VideoMode({windowWidth, windowHeight}), "Mandelbrot Set");
-    MandelbrotRenderer renderer(window);
+    renderer = new MandelbrotRenderer(window, &calc);
+    std::atexit(saveState);
+    bool resume = true;
+    if(argc == 2){
+        if(!std::strncmp(argv[1], "x:0x", 4))
+            calc = Fixed_SetCalc(string(argv[1]));
+        resume = (bool)std::strcmp(argv[1], "-no-resume");
+    }
+    if(resume)
+        resumeState();
+    
     if(!window.setActive(false))
         cout << "Failed to deactivate graphics in main thread!" << endl;
-    boost::thread windowRenderer(&MandelbrotRenderer::draw, &renderer);
+    boost::thread windowRenderer(&MandelbrotRenderer::draw, renderer);
     boost::thread imageRenderer;
     
     while (window.isOpen())
@@ -20,7 +110,7 @@ int main(int, char **)
         {
             if (event->is<sf::Event::Closed>())
             {
-                renderer.stopRendering = true;
+                renderer->stopRendering = true;
                 windowRenderer.join();
                 imageRenderer.interrupt();
                 window.close();
@@ -29,39 +119,43 @@ int main(int, char **)
             {
                 switch(keyPressed->scancode){
                 case sf::Keyboard::Scancode::Space:
-                    imageRenderer = boost::thread(&MandelbrotRenderer::renderImage, &renderer);
+                    imageRenderer = boost::thread(&MandelbrotRenderer::beginRenderImage, renderer);
                     break;
                 case sf::Keyboard::Scancode::PageUp:
-                    renderer.windowDepth += 256;
-                    cout << "WindowDepth: " << renderer.windowDepth << "              " << endl;
+                    renderer->windowDepth += 256;
+                    cout << "WindowDepth: " << renderer->windowDepth << "              " << endl;
                     break;
                     case sf::Keyboard::Scancode::PageDown:
-                    if(renderer.windowDepth > 0) renderer.windowDepth -= 256;
-                    cout << "WindowDepth: " << renderer.windowDepth <<  "              " << endl;
+                    if(renderer->windowDepth > 0) renderer->windowDepth -= 256;
+                    cout << "WindowDepth: " << renderer->windowDepth <<  "              " << endl;
                     break;
                 case sf::Keyboard::Scancode::Escape:
-                    renderer.stopRendering = true;
+                    renderer->stopRendering = true;
                     windowRenderer.join();
-                    renderer.stopRendering = false;
-                    renderer.reset();
-                    windowRenderer = boost::thread(&MandelbrotRenderer::draw, &renderer);
+                    renderer->stopRendering = false;
+                    renderer->reset();
+                    windowRenderer = boost::thread(&MandelbrotRenderer::draw, renderer);
+                    break;
+                case sf::Keyboard::Scancode::S:
+                    saveState();
+                default:
                     break;
                 }
             }
             if (const sf::Event::MouseButtonPressed* mouseButton = event->getIf<sf::Event::MouseButtonPressed>())
             {
-                renderer.stopRendering = true;
+                renderer->stopRendering = true;
                 windowRenderer.join();
-                renderer.stopRendering = false;
+                renderer->stopRendering = false;
                 if(!window.setActive(true))
                     cout << "Failed to activate graphics in main thread!" << endl;
                 if (mouseButton->button == sf::Mouse::Button::Left)
-                    renderer.zoomIn(mouseButton->position.x, mouseButton->position.y);
+                    renderer->zoomIn(mouseButton->position.x, mouseButton->position.y);
                 else
-                    renderer.zoomOut(mouseButton->position.x, mouseButton->position.y);
+                    renderer->zoomOut(mouseButton->position.x, mouseButton->position.y);
                 if(!window.setActive(false))
                     cout << "Failed to deactivate graphics in main thread!" << endl;
-                windowRenderer = boost::thread(&MandelbrotRenderer::draw, &renderer);
+                windowRenderer = boost::thread(&MandelbrotRenderer::draw, renderer);
             }
         }
     }
