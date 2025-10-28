@@ -25,17 +25,18 @@ Fixed_t::Fixed_t(double number, size_t precision){
 }
 
 Fixed_t::Fixed_t(std::string hex){
-  uint8_t start = hex[0] == '-' ? 1 : 0;
   size_t idx = hex.find_first_of('.') + 1;
-  if(hex[start] != '0' || hex[start + 1] != 'x' || idx == 0)
+  if(hex[1] != '0' || hex[2] != 'x' || idx == 0)
     throw std::invalid_argument("Hex string must start with 0x and contain a '.'!");
-  number = std::stoi(hex.substr(start + 2, idx - 3 - start));
+  number = std::stoi(hex.substr(3, idx - 2));
   while(idx < hex.size()){
     digits.push_back(std::stoull(hex.substr(idx, 16), 0, 16));
     idx += 16;
   }
-  if(start == 1)
+  if(hex[0] == '-')
     this->neg();
+  else if(hex[0] != '+')
+    throw std::invalid_argument("Hex string must start with '+' or '-'!");
 }
 
 

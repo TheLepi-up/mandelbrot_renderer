@@ -60,7 +60,7 @@ inline void resumeState(){
                     cout << "Ignoring line: " << line;
                 continue;
             }
-            string pos = line.substr(0, xIdx - 1);
+            string pos = line.substr(0, dIdx - 1);
             try{
                 if(xIdx + 1 == yIdx){
                     //GUI state
@@ -77,8 +77,8 @@ inline void resumeState(){
                 cout << "error parsing saved state:" << 
                     " x: '" << line.substr(xIdx, yIdx - xIdx) << 
                     "' y:'" << line.substr(yIdx) << 
-                    "' depth: '" << line.substr(xIdx, yIdx - xIdx) << 
-                    "' pos: '" << pos << endl;
+                    "' depth: '" << line.substr(dIdx, xIdx - dIdx) << 
+                    "' pos: '" << pos << "'\nError: " << e.what() << endl;
             }
         }
 
