@@ -87,15 +87,17 @@ inline void resumeState(){
 
 
 int main(int argc, char **argv){
+    bool resume = true;
+    if(argc == 2){
+        resume = (bool)std::strcmp(argv[1], "-no-resume");
+        if(!std::strncmp(argv[1], "x:", 2)){
+            calc = Fixed_SetCalc(string(argv[1]));
+            resume = false;
+        }
+    }
     sf::RenderWindow window(sf::VideoMode({windowWidth, windowHeight}), "Mandelbrot Set");
     renderer = new MandelbrotRenderer(window, &calc);
     std::atexit(saveState);
-    bool resume = true;
-    if(argc == 2){
-        if(!std::strncmp(argv[1], "x:0x", 4))
-            calc = Fixed_SetCalc(string(argv[1]));
-        resume = (bool)std::strcmp(argv[1], "-no-resume");
-    }
     if(resume)
         resumeState();
     
