@@ -62,12 +62,13 @@ inline void resumeState(){
             }
             string pos = line.substr(0, dIdx - 1);
             try{
+                uint64_t depth = std::stoull(line.substr(dIdx, xIdx - dIdx));
                 if(xIdx + 1 == yIdx){
                     //GUI state
                     renderer->calc->fromStr(pos);
+                    renderer->windowDepth = depth;
                     continue;
                 }
-                uint64_t depth = std::stoull(line.substr(dIdx, xIdx - dIdx));
                 short x = std::stoi(line.substr(xIdx, yIdx - xIdx));
                 short y = std::stoi(line.substr(yIdx));
                 boost::thread(&MandelbrotRenderer::renderImage, renderer, new SetCalc_Impl(pos), depth, x, y);
