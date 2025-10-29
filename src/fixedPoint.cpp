@@ -16,8 +16,11 @@ Fixed_t::Fixed_t(double number, size_t precision){
   set_precision(precision);
   this->number = (int32_t)number;
   if(digits.size() >= 1){
+    // (double to uint64_t behaves differently between amd64 and aarch64!)
+    // aarch64: negative double values get casted to 0 if casted directly to uint64_t
+    // amd64: double to uint64_t cast behaves just like double to int64_t and keeps the sign bit.
     double tmp = (std::ldexp(number - (double)this->number, 63));
-    digits[0] = ((uint64_t)tmp) << 1; //get around the sign bit in the double to int conversion
+    digits[0] = (uint64_t)((int64_t)tmp) << 1; //get around the sign bit in the double to int conversion 
     if(digits[0] != 0 && number < 0.0){
       this->number --;//Handle 2s complement
     }
