@@ -16,7 +16,7 @@ public:
   virtual void zoomIn(double x, double y) = 0;
   virtual void zoomOut(double x, double y) = 0;
   virtual void reset() = 0;
-  virtual void fromStr(std::string pos) = 0;
+  virtual void fromStr(const std::string pos) = 0;
   virtual const std::string toString() = 0;
 };
 

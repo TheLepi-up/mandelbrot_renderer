@@ -11,8 +11,7 @@ file(GLOB SOURCES "src/*.cpp")
 
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-O3")
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-Wall")
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_OPTIONS "-Wall;-Ofast;-flto;-ffast-math;-ftree-vectorize;-march=native")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE SFML::System SFML::Window SFML::Graphics boost_thread)
 

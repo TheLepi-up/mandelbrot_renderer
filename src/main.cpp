@@ -92,7 +92,7 @@ int main(int argc, char **argv){
     if(argc == 2){
         resume = (bool)std::strcmp(argv[1], "-no-resume");
         if(!std::strncmp(argv[1], "x:", 2)){
-            calc = Fixed_SetCalc(string(argv[1]));
+            calc.fromStr(string(argv[1]));
             resume = false;
         }
     }

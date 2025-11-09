@@ -3,23 +3,67 @@
 #include <vector>
 #include <inttypes.h>
 #include <string>
+#include <memory.h>
 
 typedef unsigned int uint;
 #define DBITS (sizeof(uint64_t) * 8)
+#define PREC(bits) ((bits + (DBITS - 1)) / DBITS)
 
+class DigitList{
+private:
+  uint64_t* _data = nullptr;
+  size_t _size = 0;
+public:
+  inline uint64_t &operator[](const size_t idx) const { return _data[idx]; }
+  inline const size_t size() const { return _size; }
+  inline void resize(const size_t newSize){ 
+    if(newSize == _size)
+      return;
+    if(newSize == 0){
+      _size = newSize;
+      free(_data);
+      _data = nullptr;
+      return;
+    }
+    if(_data)
+      _data = (uint64_t*)realloc(_data, newSize * sizeof(uint64_t));
+    else
+      _data = (uint64_t*)malloc(newSize * sizeof(uint64_t));
+    for (size_t i = _size; i < newSize; i++)
+      _data[i] = 0;//initialize new memory
+    _size = newSize;
+  }
+  inline DigitList(){}
+  inline DigitList(const size_t size){ resize(size); }
+  inline DigitList(const DigitList& other){ 
+    resize(other._size);
+    memcpy(_data, other._data, _size * sizeof(uint64_t));
+  }
+  inline ~DigitList(){
+    free(_data);
+    _data = nullptr;
+    _size = 0;
+  }
+};
 
 class Fixed_t{
 private:
   int32_t number = 0;
-  std::vector<uint64_t> digits;
+  DigitList digits;
 
   public:
-  Fixed_t(){};
-  Fixed_t(size_t precision);
-  Fixed_t(int32_t number, size_t precision);
+  inline Fixed_t(){};
+  inline Fixed_t(const Fixed_t& other) : number(other.number), digits(other.digits){};
+  inline Fixed_t(size_t precision) : digits(PREC(precision)) {}
+  inline Fixed_t(int32_t number, size_t precision) : number(number), digits(PREC(precision)){}
   Fixed_t(double number, size_t precision);
   Fixed_t(std::string hex);
   inline void copyFrom(Fixed_t const& other);
+  inline void operator=(int32_t number);
+  void operator=(const double number);
+  void operator=(const std::string hex);
+  //Do not use this by accedent as it is inefficient in most cases
+  void operator=(const Fixed_t& other) = delete; 
   inline bool operator<(Fixed_t const& other) const;
   inline bool operator>(Fixed_t const& other) const;
   inline bool operator==(Fixed_t const& other) const;
@@ -38,7 +82,7 @@ private:
   inline Fixed_t operator/(Fixed_t const& other) const;
   inline Fixed_t operator<<(int other) const;
   inline Fixed_t operator>>(int other) const;
-  void set_precision(size_t precision);
+  inline void set_precision(size_t precision){ digits.resize(PREC(precision)); }
   std::string toHex() const;
 };
 
@@ -48,6 +92,14 @@ inline void Fixed_t::copyFrom(Fixed_t const& other){
   for (size_t i = 0; i < other.digits.size(); i++)
   {
     digits[i] = other.digits[i];
+  }
+}
+
+inline void Fixed_t::operator=(int32_t number){
+  this->number = number;
+  for (size_t i = 0; i < digits.size(); i++)
+  {
+    digits[i] = 0;
   }
 }
 
@@ -271,40 +323,40 @@ inline void Fixed_t::operator/=(Fixed_t const& other) {
 
 }
 inline Fixed_t Fixed_t::operator+(Fixed_t const& other) const{
-  Fixed_t res = *this;
+  Fixed_t res(*this);
   res += other;
   return res;
 }
 
 inline Fixed_t Fixed_t::operator-(Fixed_t const& other) const{
-  Fixed_t res = *this;
+  Fixed_t res(*this);
   res -= other;
   return res;
 }
 
 inline Fixed_t Fixed_t::operator-() const{
-  Fixed_t copy = *this;
+  Fixed_t copy(*this);
   copy.neg();
   return copy;
 }
 
 inline Fixed_t Fixed_t::operator*(Fixed_t &other) const{
-  Fixed_t res = *this;
+  Fixed_t res(*this);
   res *= other;
   return res;
 }
 inline Fixed_t Fixed_t::operator/(Fixed_t const& other) const{
-  Fixed_t res = *this;
+  Fixed_t res(*this);
   res /= other;
   return res;
 }
 inline Fixed_t Fixed_t::operator>>(int other) const{
-  Fixed_t res = *this;
+  Fixed_t res(*this);
   res >>= other;
   return res;
 }
 inline Fixed_t Fixed_t::operator<<(int other) const{
-  Fixed_t res = *this;
+  Fixed_t res(*this);
   res <<= other;
   return res;
 }

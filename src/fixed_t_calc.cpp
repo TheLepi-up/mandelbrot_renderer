@@ -8,9 +8,6 @@
 Fixed_SetCalc::Fixed_SetCalc(std::string initial_pos){
   fromStr(initial_pos);
 }
-Fixed_SetCalc::Fixed_SetCalc(){
-  reset();
-}
 
 Fixed_SetCalc::~Fixed_SetCalc()
 {
@@ -84,12 +81,14 @@ void Fixed_SetCalc::zoomOut(double x, double y){
   yPos.set_precision(SCALE_PREC);
 }
 void Fixed_SetCalc::reset(){
-  xPos = Fixed_t(0, 31);
-  yPos = Fixed_t(0, 31);
+  xPos.set_precision(31);
+  xPos = 0;
+  yPos.set_precision(31);
+  yPos = 0;
   scale = -1;
 }
 
-void Fixed_SetCalc::fromStr(std::string pos){
+void Fixed_SetCalc::fromStr(const std::string pos){
   size_t yIdx = pos.find_first_of('_') + 1;
   size_t scaleIdx = pos.find_first_of('_', yIdx) + 1;
   if(yIdx == 0 || scaleIdx == 0)
@@ -103,14 +102,13 @@ void Fixed_SetCalc::fromStr(std::string pos){
   if(pos.find("scale:", yIdx) != scaleIdx){
     throw std::invalid_argument("scale must start with 'scale:'");
   }
-  xPos = Fixed_t(pos.substr(2, yIdx - 3));
-  yPos = Fixed_t(pos.substr(yIdx + 2, scaleIdx - yIdx - 3));
+  xPos = pos.substr(2, yIdx - 3);
+  yPos = pos.substr(yIdx + 2, scaleIdx - yIdx - 3);
   scale = std::stoll(pos.substr(scaleIdx + 6));
 }
 
 const std::string Fixed_SetCalc::toString() {
   std::stringstream name;
   name << "x:" << xPos.toHex() << "_y:" << yPos.toHex() << "_scale:" << scale;
-  
   return name.str();
 }

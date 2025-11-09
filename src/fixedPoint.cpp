@@ -5,15 +5,16 @@
 #include <string>
 #include <stdexcept>
 
-
-Fixed_t::Fixed_t(size_t precision){
-  set_precision(precision);
-}
-Fixed_t::Fixed_t(int32_t number, size_t precision) : number(number){
-  set_precision(precision);
-}
 Fixed_t::Fixed_t(double number, size_t precision){
   set_precision(precision);
+  *this = number;
+}
+
+Fixed_t::Fixed_t(std::string hex){
+  *this = hex;
+}
+
+void Fixed_t::operator=(const double number){
   this->number = (int32_t)number;
   if(digits.size() >= 1){
     // (double to uint64_t behaves differently between amd64 and aarch64!)
@@ -27,13 +28,15 @@ Fixed_t::Fixed_t(double number, size_t precision){
   }
 }
 
-Fixed_t::Fixed_t(std::string hex){
+void Fixed_t::operator=(const std::string hex){
   size_t idx = hex.find_first_of('.') + 1;
   if(hex[1] != '0' || hex[2] != 'x' || idx == 0)
     throw std::invalid_argument("Hex string must start with 0x and contain a '.'!");
   number = std::stoi(hex.substr(3, idx - 2));
+  digits.resize((hex.size() - idx + 15) / 16);//round up to whole digits (uint64_t)
+  size_t i = 0;
   while(idx < hex.size()){
-    digits.push_back(std::stoull(hex.substr(idx, 16), 0, 16));
+    digits[i++] = std::stoull(hex.substr(idx, 16), 0, 16);
     idx += 16;
   }
   if(hex[0] == '-')
@@ -42,16 +45,11 @@ Fixed_t::Fixed_t(std::string hex){
     throw std::invalid_argument("Hex string must start with '+' or '-'!");
 }
 
-
-void Fixed_t::set_precision(size_t precision){
-  digits.resize((precision + (DBITS - 1)) / DBITS);
-}
-
 std::string Fixed_t::toHex() const{
   std::stringstream res;
-  Fixed_t x = *this;
+  Fixed_t x(*this);
   if(number < 0){
-    x = -x;
+    x.neg();
     res << "-0x";
   }else
     res << "+0x";
